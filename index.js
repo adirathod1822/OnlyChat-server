@@ -26,9 +26,9 @@ io.on("connection", (socket) => {
     sendOnlineUsers();
   });
 
-  // socket.on("get_online_users", () => {
-  //   socket.emit("online_users", Object.keys(users));
-  // }, 1500);
+  socket.on("get_online_users", () => {
+    socket.emit("online_users", Object.keys(users));
+  });
 
   socket.on("send_private_message", ({ to, from, text }) => {
     const targetSocket = users[to];
