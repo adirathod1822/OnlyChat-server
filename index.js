@@ -10,7 +10,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://onlychat-1f5ee.web.app"],
+    origin: ["https://onlychat-1f5ee.web.app"],
     methods: ["GET", "POST"],
   },
 });
