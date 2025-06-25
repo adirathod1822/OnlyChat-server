@@ -4,54 +4,81 @@ const cors = require("cors");
 const { Server } = require("socket.io");
 
 const app = express();
-app.use(cors());
+
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://onlychat-1f5ee.web.app",
+  "https://onlychat.uk",
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
+  methods: ["GET", "POST"],
+  credentials: true,
+}));
 
 const server = http.createServer(app);
 
+
 const io = new Server(server, {
   cors: {
-    origin: ["https://onlychat-1f5ee.web.app", "https://onlychat.uk"],
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
-const users = {}; // email -> socket.id
+
+const users = {}; 
 
 io.on("connection", (socket) => {
-  console.log("🟢 Connected:", socket.id);
+  console.log("🟢 New connection:", socket.id);
 
   socket.on("register_user", (email) => {
     users[email] = socket.id;
     console.log("✅ Registered:", email, "→", socket.id);
-    sendOnlineUsers();
+    broadcastOnlineUsers();
   });
+
 
   socket.on("get_online_users", () => {
     socket.emit("online_users", Object.keys(users));
   });
 
+
   socket.on("send_private_message", ({ to, from, text }) => {
-    const targetSocket = users[to];
-    if (targetSocket) {
-      io.to(targetSocket).emit("receive_private_message", { from, to, text });
+    const targetSocketId = users[to];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("receive_private_message", { from, to, text });
     }
   });
 
+
   socket.on("disconnect", () => {
-    for (let email in users) {
+    for (const email in users) {
       if (users[email] === socket.id) {
         console.log("❌ Disconnected:", email);
         delete users[email];
         break;
       }
     }
-    sendOnlineUsers();
+    broadcastOnlineUsers();
   });
 
-  function sendOnlineUsers() {
-    const onlineEmails = Object.keys(users);
-    io.emit("online_users", onlineEmails);
+
+  function broadcastOnlineUsers() {
+    const onlineUsers = Object.keys(users);
+    io.emit("online_users", onlineUsers);
   }
 });
 
-server.listen(5000, () => console.log("🚀 Server running on port 5000"));
+const PORT = 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
