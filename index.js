@@ -5,7 +5,6 @@ const { Server } = require("socket.io");
 
 const app = express();
 
-
 const allowedOrigins = [
   "http://localhost:3000",
   "https://onlychat-1f5ee.web.app",
@@ -25,7 +24,6 @@ app.use(cors({
 
 const server = http.createServer(app);
 
-
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -33,7 +31,6 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
 
 const users = {}; 
 
@@ -46,16 +43,46 @@ io.on("connection", (socket) => {
     broadcastOnlineUsers();
   });
 
-
+  
   socket.on("get_online_users", () => {
     socket.emit("online_users", Object.keys(users));
   });
 
 
-  socket.on("send_private_message", ({ to, from, text }) => {
+  socket.on("send_private_message", (msg) => {
+    let { from, to, text, timestamp, ...rest } = msg;
+
+    if (!timestamp || isNaN(new Date(timestamp).getTime())) {
+      timestamp = Date.now();
+    }
+
+    const forwardMsg = {
+      from,
+      to,
+      text,
+      timestamp,
+      ...rest,
+    };
+
     const targetSocketId = users[to];
     if (targetSocketId) {
-      io.to(targetSocketId).emit("receive_private_message", { from, to, text });
+      io.to(targetSocketId).emit("receive_private_message", forwardMsg);
+    }
+  });
+
+  socket.on("typing", (data) => {
+    const { from, to } = data;
+    const targetSocketId = users[to];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("typing", { from, to });
+    }
+  });
+
+  socket.on("stop_typing", (data) => {
+    const { from, to } = data;
+    const targetSocketId = users[to];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("stop_typing", { from, to });
     }
   });
 
@@ -78,7 +105,7 @@ io.on("connection", (socket) => {
   }
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
