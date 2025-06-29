@@ -2,8 +2,17 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+const admin = require("firebase-admin");
 
 const app = express();
+
+const serviceAccount = require("./onlychat-admin.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const firestore = admin.firestore();
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -32,7 +41,7 @@ const io = new Server(server, {
   },
 });
 
-const users = {}; 
+const users = {};
 
 io.on("connection", (socket) => {
   console.log("🟢 New connection:", socket.id);
@@ -43,7 +52,7 @@ io.on("connection", (socket) => {
     broadcastOnlineUsers();
   });
 
-  
+
   socket.on("get_online_users", () => {
     socket.emit("online_users", Object.keys(users));
   });
@@ -86,11 +95,20 @@ io.on("connection", (socket) => {
     }
   });
 
-
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     for (const email in users) {
       if (users[email] === socket.id) {
         console.log("❌ Disconnected:", email);
+        try {
+          await firestore.collection("users").doc(email).update({
+            online: false,
+            last_changed: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          console.log(`📉 Set ${email} offline in Firestore`);
+        } catch (err) {
+          console.error("❌ Firestore update failed:", err);
+        }
+
         delete users[email];
         break;
       }
