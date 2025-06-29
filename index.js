@@ -6,7 +6,11 @@ const admin = require("firebase-admin");
 
 const app = express();
 
-const serviceAccount = require("./onlychat-admin.json");
+require("dotenv").config();
+const decodedKey = Buffer.from(process.env.FIREBASE_ADMIN_KEY_BASE64, "base64").toString("utf8");
+
+// Parse the decoded JSON string
+const serviceAccount = JSON.parse(decodedKey);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
